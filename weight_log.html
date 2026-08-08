@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WEIGHT LOG</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+          },
+          colors: {
+            zinc: {
+              850: '#202022',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+    }
+    
+    /* 隠しスクロールバー */
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    
+    .tab-active { color: #fff; }
+    .tab-inactive { color: #71717a; } /* zinc-500 */
+    
+    /* 入力フォームのスタイル調整 */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    /* トランジション */
+    .view-transition {
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* グラフツールチップ */
+    #graph-tooltip {
+      transition: top 0.1s, left 0.1s;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 pb-20 select-none">
+
+  <!-- ================= SETUP VIEW ================= -->
+  <div id="view-setup" class="hidden min-h-screen flex flex-col p-6 view-transition">
+    <div class="mb-8 mt-10">
+      <h1 class="text-3xl font-bold tracking-tight">INITIAL SETUP</h1>
+      <p class="text-zinc-400 mt-2 text-sm">プロフィールを入力してアプリを始めましょう</p>
+    </div>
+    
+    <div class="space-y-5 flex-1 pb-10">
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">NAME (任意)</label>
+        <input type="text" id="setup-name" placeholder="Nickname" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500 transition-colors">
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">SEX</label>
+          <select id="setup-sex" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500 appearance-none">
+            <option value="male">男性</option>
+            <option value="female">女性</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">AGE</label>
+          <input type="number" id="setup-age" value="30" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">HEIGHT (cm)</label>
+          <input type="number" id="setup-height" value="170" step="0.1" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">WEIGHT (kg)</label>
+          <input type="number" id="setup-weight" value="65.0" step="0.1" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">GOAL WEIGHT (kg)</label>
+        <input type="number" id="setup-goal" value="60.0" step="0.1" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">ACTIVITY LEVEL</label>
+        <select id="setup-activity" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500 appearance-none">
+          <option value="1.2">ほぼ運動しない</option>
+          <option value="1.375">軽い運動</option>
+          <option value="1.55" selected>週3〜5回程度運動</option>
+          <option value="1.725">ほぼ毎日運動</option>
+          <option value="1.9">非常に活動量が多い</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">減量ペース</label>
+        <select id="setup-pace" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500 appearance-none">
+          <option value="0.25">ゆっくり (-0.25kg / 週)</option>
+          <option value="0.5" selected>標準 (-0.5kg / 週)</option>
+          <option value="0.75">速め (-0.75kg / 週)</option>
+        </select>
+      </div>
+    </div>
+    
+    <button onclick="saveSetup()" class="w-full bg-zinc-100 text-zinc-900 font-bold py-4 rounded-xl mt-auto active:scale-[0.98] transition-transform">
+      GET STARTED
+    </button>
+  </div>
+
+  <!-- ================= HOME VIEW ================= -->
+  <div id="view-home" class="hidden p-4 view-transition space-y-4">
+    <!-- Header -->
+    <div class="flex justify-between items-center py-2">
+      <h1 class="text-xl font-bold tracking-widest">WEIGHT LOG</h1>
+      <div id="home-date-display" class="text-sm font-medium text-zinc-400"></div>
+    </div>
+
+    <!-- Main Weight Card -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 relative overflow-hidden">
+      <div class="absolute top-0 right-0 p-4 opacity-10">
+        <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.64-2.1 1.64-1.54 0-2.1-.83-2.14-1.73H8.21c.07 1.6 1.12 2.75 2.69 3.14V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z"/></svg>
+      </div>
+      
+      <p class="text-xs font-semibold text-zinc-400 tracking-wider">CURRENT WEIGHT</p>
+      <div class="flex items-baseline mt-1 space-x-2">
+        <span id="home-current-weight" class="text-5xl font-bold tabular-nums tracking-tighter">--.-</span>
+        <span class="text-xl text-zinc-400 font-medium">kg</span>
+      </div>
+      
+      <div class="flex items-center mt-3 space-x-4">
+        <div class="flex items-center">
+          <span id="home-diff-icon" class="text-zinc-500 mr-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path></svg>
+          </span>
+          <span id="home-diff-val" class="text-sm font-bold tabular-nums">-- kg</span>
+          <span class="text-xs text-zinc-500 ml-1">vs prev</span>
+        </div>
+        <div class="text-sm">
+          <span class="text-zinc-500 text-xs">GOAL: </span>
+          <span id="home-goal-diff" class="font-bold tabular-nums">-- kg</span>
+        </div>
+      </div>
+      
+      <!-- Progress Bar -->
+      <div class="mt-5">
+        <div class="flex justify-between text-[10px] text-zinc-500 font-bold mb-1">
+          <span>START <span id="home-start-weight">--</span></span>
+          <span id="home-progress-pct" class="text-zinc-300">--% COMPLETE</span>
+          <span>GOAL <span id="home-goal-weight">--</span></span>
+        </div>
+        <div class="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+          <div id="home-progress-bar" class="h-full bg-zinc-100 rounded-full transition-all duration-1000 w-0"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-xs font-semibold text-zinc-400 tracking-wider">RECORD TODAY</h2>
+        <input type="date" id="input-date" class="bg-zinc-950 text-xs text-zinc-300 border border-zinc-800 rounded px-2 py-1 focus:outline-none">
+      </div>
+      <div class="flex space-x-3">
+        <div class="relative flex-1">
+          <input type="number" id="input-weight" step="0.1" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-2xl font-bold tabular-nums text-white focus:outline-none focus:border-zinc-500 transition-colors placeholder-zinc-700" placeholder="00.0">
+          <span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-zinc-500 font-medium">kg</span>
+        </div>
+        <button onclick="saveRecordFromHome()" class="bg-zinc-100 text-zinc-900 font-bold px-6 rounded-xl active:scale-95 transition-transform">
+          SAVE
+        </button>
+      </div>
+      <div class="mt-3">
+        <input type="text" id="input-memo" placeholder="メモ (任意)" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-500">
+      </div>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Target Calories -->
+      <div class="col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-[10px] font-bold text-zinc-500 tracking-widest">TARGET CALORIES</p>
+          <div class="flex items-baseline mt-1">
+            <span id="home-target-kcal" class="text-2xl font-bold tabular-nums">----</span>
+            <span class="text-xs text-zinc-500 ml-1">kcal / day</span>
+          </div>
+          <p id="home-kcal-warning" class="text-[10px] text-red-400 mt-1 hidden">※基礎代謝を下回る可能性があります</p>
+        </div>
+        <div class="text-right">
+          <p class="text-[10px] font-bold text-zinc-500">TDEE: <span id="home-tdee">----</span> kcal</p>
+          <p class="text-[10px] font-bold text-zinc-500">DEFICIT: <span id="home-deficit">----</span> kcal</p>
+        </div>
+      </div>
+      
+      <!-- BMI -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-zinc-500 tracking-widest">BMI</p>
+        <p id="home-bmi" class="text-xl font-bold tabular-nums mt-1">--.-</p>
+      </div>
+      
+      <!-- BMR -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <p class="text-[10px] font-bold text-zinc-500 tracking-widest">BMR (基礎代謝)</p>
+        <p id="home-bmr" class="text-xl font-bold tabular-nums mt-1">---- <span class="text-[10px] font-normal text-zinc-500">kcal</span></p>
+      </div>
+    </div>
+    
+    <!-- Mini Graph -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 h-40 flex flex-col">
+      <div class="flex justify-between items-center mb-2">
+        <p class="text-[10px] font-bold text-zinc-500 tracking-widest">RECENT TREND (30 DAYS)</p>
+      </div>
+      <div class="flex-1 relative w-full h-full">
+        <canvas id="home-mini-graph" class="absolute inset-0 w-full h-full"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= GRAPH VIEW ================= -->
+  <div id="view-graph" class="hidden p-4 view-transition h-screen flex flex-col pb-24">
+    <h2 class="text-lg font-bold tracking-widest mb-4 mt-2">TREND</h2>
+    
+    <!-- Range Selector -->
+    <div class="flex space-x-2 mb-4 overflow-x-auto pb-1 hide-scrollbar">
+      <button onclick="setGraphRange('7')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 whitespace-nowrap">7 DAYS</button>
+      <button onclick="setGraphRange('30')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-900 whitespace-nowrap">30 DAYS</button>
+      <button onclick="setGraphRange('90')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 whitespace-nowrap">3 MONTHS</button>
+      <button onclick="setGraphRange('180')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 whitespace-nowrap">6 MONTHS</button>
+      <button onclick="setGraphRange('365')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 whitespace-nowrap">1 YEAR</button>
+      <button onclick="setGraphRange('all')" class="graph-btn px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 whitespace-nowrap">ALL</button>
+    </div>
+
+    <!-- Main Graph Area -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex-1 relative mb-4">
+      <!-- 凡例 -->
+      <div class="flex space-x-4 mb-2">
+        <div class="flex items-center"><div class="w-2 h-2 rounded-full bg-zinc-100 mr-1.5"></div><span class="text-[10px] text-zinc-400">Weight</span></div>
+        <div class="flex items-center"><div class="w-2 h-0.5 bg-zinc-500 mr-1.5"></div><span class="text-[10px] text-zinc-400">7-Day Avg</span></div>
+        <div class="flex items-center"><div class="w-2 h-0.5 border-t border-dashed border-zinc-600 mr-1.5"></div><span class="text-[10px] text-zinc-400">Goal</span></div>
+      </div>
+      
+      <div class="absolute inset-0 top-12 bottom-4 left-4 right-4">
+        <canvas id="main-graph" class="w-full h-full cursor-crosshair"></canvas>
+      </div>
+      
+      <!-- Tooltip -->
+      <div id="graph-tooltip" class="absolute hidden bg-zinc-800 border border-zinc-700 text-white text-xs px-2 py-1 rounded pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2 z-10 shadow-lg">
+        <div id="tooltip-date" class="text-zinc-400 mb-0.5"></div>
+        <div class="font-bold"><span id="tooltip-weight"></span> kg</div>
+      </div>
+    </div>
+    
+    <!-- Graph Stats -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+        <p class="text-[10px] font-bold text-zinc-500">START TO NOW</p>
+        <p id="graph-stat-total" class="text-lg font-bold tabular-nums mt-1 text-white">-- kg</p>
+      </div>
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+        <p class="text-[10px] font-bold text-zinc-500">ESTIMATED TARGET DATE</p>
+        <p id="graph-stat-date" class="text-sm font-bold mt-1.5 text-zinc-300">-- / -- / --</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CALENDAR VIEW ================= -->
+  <div id="view-calendar" class="hidden p-4 view-transition h-screen flex flex-col pb-24">
+    <h2 class="text-lg font-bold tracking-widest mb-4 mt-2">CALENDAR</h2>
+    
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex-1">
+      <!-- Calendar Header -->
+      <div class="flex justify-between items-center mb-6">
+        <button onclick="changeMonth(-1)" class="p-2 text-zinc-400 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <h3 id="calendar-month-year" class="text-lg font-bold tabular-nums">YYYY / MM</h3>
+        <button onclick="changeMonth(1)" class="p-2 text-zinc-400 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+      </div>
+      
+      <!-- Days of Week -->
+      <div class="grid grid-cols-7 gap-1 mb-2">
+        <div class="text-center text-[10px] font-bold text-red-400">SUN</div>
+        <div class="text-center text-[10px] font-bold text-zinc-500">MON</div>
+        <div class="text-center text-[10px] font-bold text-zinc-500">TUE</div>
+        <div class="text-center text-[10px] font-bold text-zinc-500">WED</div>
+        <div class="text-center text-[10px] font-bold text-zinc-500">THU</div>
+        <div class="text-center text-[10px] font-bold text-zinc-500">FRI</div>
+        <div class="text-center text-[10px] font-bold text-blue-400">SAT</div>
+      </div>
+      
+      <!-- Calendar Grid -->
+      <div id="calendar-grid" class="grid grid-cols-7 gap-1 auto-rows-fr">
+        <!-- Cells generated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HISTORY VIEW ================= -->
+  <div id="view-history" class="hidden p-4 view-transition h-screen flex flex-col pb-24">
+    <h2 class="text-lg font-bold tracking-widest mb-4 mt-2">HISTORY</h2>
+    
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex-1 flex flex-col">
+      <div class="overflow-y-auto flex-1 p-2" id="history-list">
+        <!-- Items generated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS VIEW ================= -->
+  <div id="view-settings" class="hidden p-4 view-transition pb-24 space-y-6">
+    <h2 class="text-lg font-bold tracking-widest mb-4 mt-2">SETTINGS</h2>
+    
+    <!-- Profile Edit -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+      <h3 class="text-sm font-bold text-zinc-400 border-b border-zinc-800 pb-2">PROFILE</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1">HEIGHT (cm)</label>
+          <input type="number" id="setting-height" step="0.1" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1">GOAL (kg)</label>
+          <input type="number" id="setting-goal" step="0.1" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1">AGE</label>
+          <input type="number" id="setting-age" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1">SEX</label>
+          <select id="setting-sex" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+            <option value="male">男性</option>
+            <option value="female">女性</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-[10px] font-bold text-zinc-500 mb-1">ACTIVITY LEVEL</label>
+        <select id="setting-activity" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+          <option value="1.2">ほぼ運動しない (x1.2)</option>
+          <option value="1.375">軽い運動 (x1.375)</option>
+          <option value="1.55">週3〜5回運動 (x1.55)</option>
+          <option value="1.725">ほぼ毎日運動 (x1.725)</option>
+          <option value="1.9">非常に活動量が多い (x1.9)</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-[10px] font-bold text-zinc-500 mb-1">減量ペース</label>
+        <select id="setting-pace" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+          <option value="0.25">ゆっくり (-0.25kg / 週)</option>
+          <option value="0.5">標準 (-0.5kg / 週)</option>
+          <option value="0.75">速め (-0.75kg / 週)</option>
+        </select>
+      </div>
+      
+      <button onclick="saveSettings()" class="w-full bg-zinc-800 text-white font-bold py-3 rounded-xl hover:bg-zinc-700 transition-colors">
+        UPDATE PROFILE
+      </button>
+    </div>
+
+    <!-- Data Management -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+      <h3 class="text-sm font-bold text-zinc-400 border-b border-zinc-800 pb-2">DATA MANAGEMENT</h3>
+      
+      <button onclick="exportData()" class="w-full bg-zinc-950 border border-zinc-700 text-zinc-300 font-bold py-3 rounded-xl flex items-center justify-center space-x-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        <span>EXPORT DATA (JSON)</span>
+      </button>
+      
+      <div>
+        <input type="file" id="import-file" class="hidden" accept=".json" onchange="handleImport(event)">
+        <button onclick="document.getElementById('import-file').click()" class="w-full bg-zinc-950 border border-zinc-700 text-zinc-300 font-bold py-3 rounded-xl flex items-center justify-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          <span>IMPORT DATA (JSON)</span>
+        </button>
+        <p class="text-[10px] text-zinc-500 text-center mt-2">※現在のデータは上書きされます</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+  <!-- Edit Record Modal -->
+  <div id="modal-edit" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col justify-end">
+    <div class="bg-zinc-900 rounded-t-2xl p-5 transform transition-transform translate-y-full" id="modal-edit-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg" id="modal-edit-date">YYYY-MM-DD</h3>
+        <button onclick="closeModal('modal-edit')" class="text-zinc-400 p-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      </div>
+      
+      <div class="space-y-4 mb-6">
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 mb-1">WEIGHT (kg)</label>
+          <input type="number" id="modal-edit-weight" step="0.1" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white text-xl font-bold tabular-nums focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-500 mb-1">MEMO</label>
+          <input type="text" id="modal-edit-memo" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+        </div>
+      </div>
+      
+      <div class="flex space-x-3">
+        <button onclick="deleteRecordModal()" class="flex-1 bg-red-900/30 text-red-500 border border-red-900/50 font-bold py-3 rounded-xl">DELETE</button>
+        <button onclick="saveEditModal()" class="flex-[2] bg-zinc-100 text-zinc-900 font-bold py-3 rounded-xl">SAVE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-zinc-100 text-zinc-900 px-6 py-3 rounded-full font-bold text-sm shadow-lg z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+    Message
+  </div>
+
+  <!-- Custom Confirm Dialog -->
+  <div id="dialog-confirm" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm">
+      <h3 class="font-bold text-lg mb-2" id="dialog-title">確認</h3>
+      <p class="text-sm text-zinc-400 mb-6" id="dialog-message">本当によろしいですか？</p>
+      <div class="flex justify-end space-x-3">
+        <button id="dialog-btn-cancel" class="px-4 py-2 text-sm font-bold text-zinc-400">CANCEL</button>
+        <button id="dialog-btn-ok" class="px-4 py-2 text-sm font-bold bg-red-600 text-white rounded-lg">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM NAVIGATION ================= -->
+  <nav id="bottom-nav" class="fixed bottom-0 w-full bg-zinc-950/90 backdrop-blur border-t border-zinc-900 hidden pb-safe">
+    <div class="flex justify-around items-center h-16">
+      <button onclick="navigate('home')" class="nav-btn w-1/5 flex flex-col items-center justify-center space-y-1" data-target="home">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        <span class="text-[9px] font-bold">HOME</span>
+      </button>
+      <button onclick="navigate('graph')" class="nav-btn w-1/5 flex flex-col items-center justify-center space-y-1" data-target="graph">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+        <span class="text-[9px] font-bold">GRAPH</span>
+      </button>
+      <button onclick="navigate('calendar')" class="nav-btn w-1/5 flex flex-col items-center justify-center space-y-1" data-target="calendar">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span class="text-[9px] font-bold">CALENDAR</span>
+      </button>
+      <button onclick="navigate('history')" class="nav-btn w-1/5 flex flex-col items-center justify-center space-y-1" data-target="history">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+        <span class="text-[9px] font-bold">HISTORY</span>
+      </button>
+      <button onclick="navigate('settings')" class="nav-btn w-1/5 flex flex-col items-center justify-center space-y-1" data-target="settings">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <span class="text-[9px] font-bold">SETTINGS</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= JAVASCRIPT ================= -->
+  <script>
+    // --- DATA & STORAGE ---
+    const STORAGE_KEY = 'weight_log_data';
+    const APP_VERSION = 1;
+
+    let appData = {
+      version: APP_VERSION,
+      profile: null,
+      weightRecords: [] // { date: 'YYYY-MM-DD', weight: 65.0, memo: '' }
+    };
+
+    let currentView = 'setup';
+    let currentGraphRange = '30';
+    let calendarDate = new Date(); // 表示中のカレンダー月
+    let editingDate = null; // モーダルで編集中の日付
+
+    function loadData() {
+      const json = localStorage.getItem(STORAGE_KEY);
+      if (json) {
+        try {
+          const parsed = JSON.parse(json);
+          if (parsed && typeof parsed === 'object') {
+            appData = { ...appData, ...parsed };
+            sortRecords();
+            return true;
+          }
+        } catch (e) {
+          console.error("Data load error", e);
+        }
+      }
+      return false;
+    }
+
+    function saveData() {
+      sortRecords();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    }
+
+    function sortRecords() {
+      appData.weightRecords.sort((a, b) => (a.date > b.date) ? -1 : 1); // 降順 (新しいのが上)
+    }
+
+    // --- CALCULATION ---
+    // BMI = kg / (m * m)
+    function calcBMI(weight, heightCm) {
+      if (!weight || !heightCm) return 0;
+      const m = heightCm / 100;
+      return weight / (m * m);
+    }
+
+    // BMR (Mifflin-St Jeor)
+    function calcBMR(weight, heightCm, age, sex) {
+      if (!weight || !heightCm || !age) return 0;
+      // Men: 10W + 6.25H - 5A + 5
+      // Women: 10W + 6.25H - 5A - 161
+      let bmr = (10 * weight) + (6.25 * heightCm) - (5 * age);
+      return sex === 'male' ? bmr + 5 : bmr - 161;
+    }
+
+    // TDEE
+    function calcTDEE(bmr, activityLevel) {
+      return bmr * activityLevel;
+    }
+
+    // Target Calories
+    function calcTargetKcal(tdee, weeklyGoalKgs) {
+      // 1kg fat = 7700 kcal
+      const dailyDeficit = (weeklyGoalKgs * 7700) / 7;
+      return tdee - dailyDeficit;
+    }
+
+    // ユーティリティ
+    function getTodayString() {
+      const d = new Date();
+      // timezone offsetを考慮してYYYY-MM-DDを生成
+      const tzOffset = d.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(d - tzOffset)).toISOString().split('T')[0];
+      return localISOTime;
+    }
+
+    function getRecord(dateStr) {
+      return appData.weightRecords.find(r => r.date === dateStr);
+    }
+
+    function getLatestWeight() {
+      if (appData.weightRecords.length === 0) return null;
+      return appData.weightRecords[0].weight;
+    }
+    
+    function getStartWeight() {
+      if (appData.weightRecords.length === 0) return null;
+      return appData.weightRecords[appData.weightRecords.length - 1].weight;
+    }
+
+    function getRecordMap() {
+      const map = {};
+      appData.weightRecords.forEach(r => map[r.date] = r.weight);
+      return map;
+    }
+
+    // 7日移動平均を計算 (該当日の過去7日間に存在するデータの平均)
+    function calc7DayAvg(targetDateStr) {
+      const target = new Date(targetDateStr);
+      let sum = 0;
+      let count = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(target);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const r = getRecord(dateStr);
+        if (r) {
+          sum += r.weight;
+          count++;
+        }
+      }
+      return count > 0 ? (sum / count) : null;
+    }
+
+    // --- STREAMING_CHUNK:UI Control & Navigation ---
+    // --- UI CONTROL ---
+    function navigate(viewId) {
+      // Hide all views
+      const views = ['view-setup', 'view-home', 'view-graph', 'view-calendar', 'view-history', 'view-settings'];
+      views.forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      
+      // Show target view
+      const targetEl = document.getElementById('view-' + viewId);
+      if(targetEl) {
+        targetEl.classList.remove('hidden');
+        // トリガーアニメーション用にクラスを付け直す
+        targetEl.classList.remove('view-transition');
+        void targetEl.offsetWidth; // reflow
+        targetEl.classList.add('view-transition');
+      }
+      
+      currentView = viewId;
+      
+      // Nav highlighting
+      if (viewId !== 'setup') {
+        document.getElementById('bottom-nav').classList.remove('hidden');
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+          if (btn.dataset.target === viewId) {
+            btn.classList.add('tab-active');
+            btn.classList.remove('tab-inactive');
+          } else {
+            btn.classList.add('tab-inactive');
+            btn.classList.remove('tab-active');
+          }
+        });
+      } else {
+        document.getElementById('bottom-nav').classList.add('hidden');
+      }
+
+      // Render specific view data
+      if (viewId === 'home') renderHome();
+      if (viewId === 'graph') renderGraphView();
+      if (viewId === 'calendar') renderCalendar();
+      if (viewId === 'history') renderHistory();
+      if (viewId === 'settings') renderSettings();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+      }, 2000);
+    }
+
+    // Custom confirm box to avoid window.confirm
+    function customConfirm(message, onConfirm) {
+      const dialog = document.getElementById('dialog-confirm');
+      document.getElementById('dialog-message').textContent = message;
+      dialog.classList.remove('hidden');
+      
+      const btnCancel = document.getElementById('dialog-btn-cancel');
+      const btnOk = document.getElementById('dialog-btn-ok');
+      
+      // Remove old listeners
+      const newBtnCancel = btnCancel.cloneNode(true);
+      const newBtnOk = btnOk.cloneNode(true);
+      btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
+      btnOk.parentNode.replaceChild(newBtnOk, btnOk);
+      
+      newBtnCancel.addEventListener('click', () => {
+        dialog.classList.add('hidden');
+      });
+      
+      newBtnOk.addEventListener('click', () => {
+        dialog.classList.add('hidden');
+        onConfirm();
+      });
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      const content = document.getElementById(id + '-content');
+      content.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+    }
+
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      const content = document.getElementById(id + '-content');
+      modal.classList.remove('hidden');
+      // small delay to allow display:block to apply before transform transition
+      setTimeout(() => {
+        content.style.transform = 'translateY(0)';
+      }, 10);
+    }
+
+    // --- STREAMING_CHUNK:Setup Logic ---
+    // --- SETUP LOGIC ---
+    function saveSetup() {
+      const height = parseFloat(document.getElementById('setup-height').value);
+      const weight = parseFloat(document.getElementById('setup-weight').value);
+      const goal = parseFloat(document.getElementById('setup-goal').value);
+      const age = parseInt(document.getElementById('setup-age').value);
+      const sex = document.getElementById('setup-sex').value;
+      const activity = parseFloat(document.getElementById('setup-activity').value);
+      const pace = parseFloat(document.getElementById('setup-pace').value);
+      
+      if (!height || !weight || !goal || !age) {
+        showToast("数値を正しく入力してください");
+        return;
+      }
+
+      appData.profile = {
+        name: document.getElementById('setup-name').value || '',
+        sex, age, height, goalWeight: goal, activityLevel: activity, weeklyGoal: pace
+      };
+
+      // 最初の体重を記録
+      const today = getTodayString();
+      appData.weightRecords = [{ date: today, weight, memo: 'START' }];
+      
+      saveData();
+      navigate('home');
+    }
+
+    // --- STREAMING_CHUNK:Home Logic ---
+    // --- HOME LOGIC ---
+    function renderHome() {
+      if (!appData.profile) return;
+      
+      // Date Display
+      const d = new Date();
+      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      document.getElementById('home-date-display').textContent = `${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)} ${days[d.getDay()]}`;
+
+      // Set default input date & latest weight
+      const today = getTodayString();
+      document.getElementById('input-date').value = today;
+      
+      const latestW = getLatestWeight() || appData.profile.weight; // fallback
+      document.getElementById('input-weight').placeholder = latestW.toFixed(1);
+      
+      // 今日すでに記録があれば表示
+      const todayRec = getRecord(today);
+      if (todayRec) {
+        document.getElementById('input-weight').value = todayRec.weight;
+        document.getElementById('input-memo').value = todayRec.memo || '';
+      } else {
+        document.getElementById('input-weight').value = '';
+        document.getElementById('input-memo').value = '';
+      }
+
+      // Update Main Stats
+      if (latestW) {
+        document.getElementById('home-current-weight').textContent = latestW.toFixed(1);
+        
+        // Prev Diff
+        if (appData.weightRecords.length >= 2) {
+          const prevW = appData.weightRecords[1].weight;
+          const diff = latestW - prevW;
+          const diffEl = document.getElementById('home-diff-val');
+          const iconEl = document.getElementById('home-diff-icon');
+          diffEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(1) + ' kg';
+          if (diff > 0) {
+            diffEl.className = "text-sm font-bold tabular-nums text-red-400";
+            iconEl.innerHTML = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>`;
+          } else if (diff < 0) {
+            diffEl.className = "text-sm font-bold tabular-nums text-blue-400";
+            iconEl.innerHTML = `<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
+          } else {
+            diffEl.className = "text-sm font-bold tabular-nums text-zinc-400";
+            iconEl.innerHTML = `<svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path></svg>`;
+          }
+        } else {
+          document.getElementById('home-diff-val').textContent = '- kg';
+          document.getElementById('home-diff-icon').innerHTML = `<svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"></path></svg>`;
+        }
+
+        // Goal Diff
+        const goalDiff = latestW - appData.profile.goalWeight;
+        document.getElementById('home-goal-diff').textContent = (goalDiff > 0 ? '+' : '') + goalDiff.toFixed(1) + ' kg';
+
+        // Progress Bar
+        const startW = getStartWeight();
+        const goalW = appData.profile.goalWeight;
+        document.getElementById('home-start-weight').textContent = startW.toFixed(1);
+        document.getElementById('home-goal-weight').textContent = goalW.toFixed(1);
+        
+        let progress = 0;
+        if (startW !== goalW) {
+           // 減量の場合と増量の場合でプログレス計算
+           const totalDiff = Math.abs(startW - goalW);
+           const currentDiff = Math.abs(startW - latestW);
+           progress = (currentDiff / totalDiff) * 100;
+           // 進行方向が逆（リバウンド）なら0にクリップ
+           if ((startW > goalW && latestW > startW) || (startW < goalW && latestW < startW)) {
+             progress = 0;
+           }
+        } else {
+           progress = 100;
+        }
+        progress = Math.min(Math.max(progress, 0), 100);
+        document.getElementById('home-progress-pct').textContent = progress.toFixed(0) + '% COMPLETE';
+        // setTimeout for animation
+        setTimeout(() => {
+          document.getElementById('home-progress-bar').style.width = progress + '%';
+        }, 100);
+
+        // Calculate Metrics
+        const bmi = calcBMI(latestW, appData.profile.height);
+        const bmr = calcBMR(latestW, appData.profile.height, appData.profile.age, appData.profile.sex);
+        const tdee = calcTDEE(bmr, appData.profile.activityLevel);
+        const targetKcal = calcTargetKcal(tdee, appData.profile.weeklyGoal);
+        
+        document.getElementById('home-bmi').textContent = bmi.toFixed(1);
+        document.getElementById('home-bmr').innerHTML = `${Math.round(bmr)} <span class="text-[10px] font-normal text-zinc-500">kcal</span>`;
+        document.getElementById('home-tdee').textContent = Math.round(tdee);
+        document.getElementById('home-deficit').textContent = Math.round(tdee - targetKcal);
+        
+        const kcalEl = document.getElementById('home-target-kcal');
+        kcalEl.textContent = Math.round(targetKcal);
+        
+        if (targetKcal < bmr) {
+           kcalEl.classList.add('text-red-400');
+           document.getElementById('home-kcal-warning').classList.remove('hidden');
+        } else {
+           kcalEl.classList.remove('text-red-400');
+           document.getElementById('home-kcal-warning').classList.add('hidden');
+        }
+      }
+
+      // Draw Mini Graph (last 30 days)
+      drawGraph('home-mini-graph', 30, true);
+    }
+
+    function saveRecordFromHome() {
+      const date = document.getElementById('input-date').value;
+      const weight = parseFloat(document.getElementById('input-weight').value);
+      const memo = document.getElementById('input-memo').value;
+
+      if (!date || !weight) {
+        showToast("日付と体重を入力してください");
+        return;
+      }
+      
+      saveRecord(date, weight, memo);
+      showToast("記録を保存しました");
+      
+      // Update UI
+      document.getElementById('input-weight').blur();
+      document.getElementById('input-memo').blur();
+      renderHome();
+    }
+
+    function saveRecord(date, weight, memo) {
+      const existingIdx = appData.weightRecords.findIndex(r => r.date === date);
+      if (existingIdx >= 0) {
+        appData.weightRecords[existingIdx].weight = weight;
+        appData.weightRecords[existingIdx].memo = memo;
+      } else {
+        appData.weightRecords.push({ date, weight, memo });
+      }
+      saveData();
+    }
+
+    // --- STREAMING_CHUNK:Graph Drawing Logic ---
+    // --- GRAPH LOGIC ---
+    function renderGraphView() {
+      // Update Active Button
+      document.querySelectorAll('.graph-btn').forEach(btn => {
+        if(btn.innerText.includes(currentGraphRange) || (currentGraphRange === 'all' && btn.innerText === 'ALL')) {
+           btn.classList.replace('bg-zinc-800', 'bg-zinc-100');
+           btn.classList.replace('text-zinc-400', 'text-zinc-900');
+        } else {
+           btn.classList.replace('bg-zinc-100', 'bg-zinc-800');
+           btn.classList.replace('text-zinc-900', 'text-zinc-400');
+        }
+      });
+      
+      let rangeDays = currentGraphRange === 'all' ? 9999 : parseInt(currentGraphRange);
+      drawGraph('main-graph', rangeDays, false);
+      
+      // Stats
+      const startW = getStartWeight();
+      const latestW = getLatestWeight();
+      if(startW && latestW) {
+         const diff = latestW - startW;
+         const totalEl = document.getElementById('graph-stat-total');
+         totalEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(1) + ' kg';
+         totalEl.className = `text-lg font-bold tabular-nums mt-1 ${diff > 0 ? 'text-red-400' : 'text-blue-400'}`;
+      }
+      
+      // Estimate Goal Date based on recent 7 days pace
+      const latestRec = appData.weightRecords[0];
+      const past7Rec = appData.weightRecords.find(r => {
+        const d1 = new Date(latestRec.date);
+        const d2 = new Date(r.date);
+        return (d1 - d2) >= (7 * 24 * 60 * 60 * 1000);
+      });
+      
+      let targetDateStr = '-- / -- / --';
+      if (latestRec && past7Rec && appData.profile.goalWeight < latestRec.weight) {
+         const pacePer7Days = past7Rec.weight - latestRec.weight; // 正なら減っている
+         if (pacePer7Days > 0) {
+           const remain = latestRec.weight - appData.profile.goalWeight;
+           const daysNeeded = (remain / pacePer7Days) * 7;
+           const targetD = new Date();
+           targetD.setDate(targetD.getDate() + daysNeeded);
+           if (daysNeeded < 365*3) { // 3年以内なら表示
+             targetDateStr = `${targetD.getFullYear()} / ${('0'+(targetD.getMonth()+1)).slice(-2)} / ${('0'+targetD.getDate()).slice(-2)}`;
+           }
+         }
+      }
+      document.getElementById('graph-stat-date').textContent = targetDateStr;
+    }
+
+    function setGraphRange(range) {
+      currentGraphRange = range;
+      renderGraphView();
+    }
+
+    function drawGraph(canvasId, daysRange, isMini) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      
+      // Responsive sizing
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      const w = rect.width;
+      const h = rect.height;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      if (appData.weightRecords.length === 0) {
+        ctx.fillStyle = '#71717a';
+        ctx.font = '12px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('NO DATA', w/2, h/2);
+        return;
+      }
+
+      // Filter Data
+      const now = new Date(getTodayString());
+      now.setHours(23,59,59,999); // end of today
+      let startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - daysRange + 1);
+      startDate.setHours(0,0,0,0); // start of day
+
+      // Generate all dates in range to plot X axis linearly
+      const plotData = []; // { xRatio, val, avg, originalDate, record }
+      const actualStart = currentGraphRange === 'all' ? new Date(appData.weightRecords[appData.weightRecords.length-1].date) : startDate;
+      const actualRangeMs = now.getTime() - actualStart.getTime();
+      
+      let minVal = 999;
+      let maxVal = 0;
+      
+      // Calculate data points
+      const pointData = [];
+      appData.weightRecords.forEach(r => {
+        const d = new Date(r.date);
+        if (d >= actualStart && d <= now) {
+          const avg = calc7DayAvg(r.date);
+          pointData.push({ date: d, record: r, avg });
+          if(r.weight < minVal) minVal = r.weight;
+          if(r.weight > maxVal) maxVal = r.weight;
+          if(avg && avg < minVal) minVal = avg;
+          if(avg && avg > maxVal) maxVal = avg;
+        }
+      });
+      
+      const goalW = appData.profile.goalWeight;
+      if (goalW < minVal) minVal = goalW;
+      if (goalW > maxVal) maxVal = goalW;
+      
+      // Margins
+      const padY = (maxVal - minVal) * 0.2;
+      minVal -= padY;
+      maxVal += padY;
+      if (minVal === maxVal) { minVal -= 1; maxVal += 1; }
+      
+      const pL = isMini ? 5 : 30;
+      const pR = isMini ? 5 : 10;
+      const pT = isMini ? 5 : 10;
+      const pB = isMini ? 5 : 20;
+      const drawW = w - pL - pR;
+      const drawH = h - pT - pB;
+
+      // Populate plotData sorted by date ascending
+      pointData.sort((a,b) => a.date - b.date).forEach(p => {
+        const xRatio = actualRangeMs === 0 ? 0.5 : (p.date.getTime() - actualStart.getTime()) / actualRangeMs;
+        plotData.push({
+          x: pL + (xRatio * drawW),
+          y: pT + drawH - ((p.record.weight - minVal) / (maxVal - minVal) * drawH),
+          yAvg: p.avg ? pT + drawH - ((p.avg - minVal) / (maxVal - minVal) * drawH) : null,
+          data: p.record
+        });
+      });
+
+      // Draw Grid & Y-Axis (Main graph only)
+      if (!isMini) {
+        ctx.strokeStyle = '#27272a'; // zinc-800
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#71717a'; // zinc-500
+        ctx.font = '10px Inter';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        
+        const steps = 4;
+        for(let i=0; i<=steps; i++) {
+           const val = minVal + (maxVal - minVal) * (i/steps);
+           const y = pT + drawH - (i/steps * drawH);
+           
+           ctx.beginPath();
+           ctx.moveTo(pL, y);
+           ctx.lineTo(w - pR, y);
+           ctx.stroke();
+           
+           ctx.fillText(val.toFixed(1), pL - 5, y);
+        }
+        
+        // Draw X-axis labels (Start and End)
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(actualStart.toISOString().split('T')[0].substring(5), pL, h - pB + 5);
+        ctx.textAlign = 'right';
+        ctx.fillText(now.toISOString().split('T')[0].substring(5), w - pR, h - pB + 5);
+      }
+
+      // Draw Goal Line
+      const goalY = pT + drawH - ((goalW - minVal) / (maxVal - minVal) * drawH);
+      ctx.beginPath();
+      ctx.strokeStyle = '#52525b'; // zinc-600
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.moveTo(pL, goalY);
+      ctx.lineTo(w - pR, goalY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      if (!isMini) {
+        ctx.fillStyle = '#52525b';
+        ctx.font = '10px Inter';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('GOAL', pL + 5, goalY - 2);
+      }
+
+      // Draw 7-Day Avg Line
+      if (plotData.length > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#71717a'; // zinc-500
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        let firstAvg = true;
+        plotData.forEach((p) => {
+          if (p.yAvg !== null) {
+            if (firstAvg) { ctx.moveTo(p.x, p.yAvg); firstAvg = false; }
+            else { ctx.lineTo(p.x, p.yAvg); }
+          }
+        });
+        ctx.stroke();
+      }
+
+      // Draw Weight Line
+      if (plotData.length > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#f4f4f5'; // zinc-100
+        ctx.lineWidth = isMini ? 2 : 3;
+        ctx.lineJoin = 'round';
+        plotData.forEach((p, i) => {
+          if (i===0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+        
+        // Draw Fill (Gradient)
+        if (plotData.length > 1) {
+          ctx.lineTo(plotData[plotData.length-1].x, h - pB);
+          ctx.lineTo(plotData[0].x, h - pB);
+          ctx.closePath();
+          const grad = ctx.createLinearGradient(0, pT, 0, h - pB);
+          grad.addColorStop(0, 'rgba(244, 244, 245, 0.2)');
+          grad.addColorStop(1, 'rgba(244, 244, 245, 0)');
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+
+        // Draw Points (Main graph only)
+        if (!isMini && plotData.length < 50) {
+          plotData.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+            ctx.fillStyle = '#18181b'; // zinc-950
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#f4f4f5';
+            ctx.stroke();
+          });
+        }
+      }
+
+      // Interactive Tooltip for Main Graph
+      if (!isMini) {
+        canvas.onmousemove = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          // clientX is relative to viewport, getBoundingClientRect is too
+          const mouseX = (e.clientX - rect.left); 
+          
+          // Find nearest point
+          let nearest = null;
+          let minDist = 9999;
+          plotData.forEach(p => {
+             const dist = Math.abs(p.x - mouseX);
+             if (dist < minDist) { minDist = dist; nearest = p; }
+          });
+          
+          const tooltip = document.getElementById('graph-tooltip');
+          if (nearest && minDist < 20) {
+            tooltip.style.left = (nearest.x + rect.left) + 'px'; // adjust for parent relative
+            tooltip.style.top = (nearest.y + rect.top - 10) + 'px';
+            document.getElementById('tooltip-date').textContent = nearest.data.date;
+            document.getElementById('tooltip-weight').textContent = nearest.data.weight.toFixed(1);
+            tooltip.classList.remove('hidden');
+          } else {
+            tooltip.classList.add('hidden');
+          }
+        };
+        canvas.onmouseleave = () => {
+          document.getElementById('graph-tooltip').classList.add('hidden');
+        };
+      }
+    }
+
+    // --- STREAMING_CHUNK:Calendar Logic ---
+    // --- CALENDAR LOGIC ---
+    function renderCalendar() {
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      
+      document.getElementById('calendar-month-year').textContent = `${year} / ${('0'+(month+1)).slice(-2)}`;
+      
+      const grid = document.getElementById('calendar-grid');
+      grid.innerHTML = '';
+      
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const startDayOfWeek = firstDay.getDay(); // 0(Sun) - 6(Sat)
+      const daysInMonth = lastDay.getDate();
+      
+      const recordMap = getRecordMap();
+      const todayStr = getTodayString();
+      
+      // Empty cells before start
+      for (let i = 0; i < startDayOfWeek; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'bg-zinc-950 rounded-md aspect-square';
+        grid.appendChild(cell);
+      }
+      
+      // Days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${('0'+(month+1)).slice(-2)}-${('0'+day).slice(-2)}`;
+        const weight = recordMap[dateStr];
+        const isToday = dateStr === todayStr;
+        
+        const cell = document.createElement('div');
+        cell.className = `bg-zinc-900 rounded-md p-1 flex flex-col cursor-pointer active:scale-95 transition-transform ${isToday ? 'border border-zinc-500' : 'border border-transparent'}`;
+        cell.onclick = () => openEditModal(dateStr);
+        
+        const dateSpan = document.createElement('span');
+        dateSpan.className = `text-[10px] font-bold ${isToday ? 'text-white' : 'text-zinc-500'}`;
+        dateSpan.textContent = day;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'flex-1 flex items-center justify-center';
+        if (weight) {
+          const weightSpan = document.createElement('span');
+          weightSpan.className = 'text-xs font-bold text-white tabular-nums';
+          weightSpan.textContent = weight.toFixed(1);
+          contentDiv.appendChild(weightSpan);
+        }
+        
+        cell.appendChild(dateSpan);
+        cell.appendChild(contentDiv);
+        grid.appendChild(cell);
+      }
+    }
+
+    function changeMonth(delta) {
+      calendarDate.setMonth(calendarDate.getMonth() + delta);
+      renderCalendar();
+    }
+
+    // --- STREAMING_CHUNK:History and Modal Logic ---
+    // --- HISTORY LOGIC ---
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      list.innerHTML = '';
+      
+      if (appData.weightRecords.length === 0) {
+        list.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">NO RECORDS</div>';
+        return;
+      }
+      
+      for (let i = 0; i < appData.weightRecords.length; i++) {
+        const r = appData.weightRecords[i];
+        const prev = i < appData.weightRecords.length - 1 ? appData.weightRecords[i+1] : null;
+        let diffStr = '';
+        let diffColor = 'text-zinc-500';
+        
+        if (prev) {
+          const diff = r.weight - prev.weight;
+          if(diff > 0) { diffStr = '+' + diff.toFixed(1); diffColor = 'text-red-400'; }
+          else if(diff < 0) { diffStr = diff.toFixed(1); diffColor = 'text-blue-400'; }
+          else { diffStr = '0.0'; }
+        }
+        
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-3 border-b border-zinc-800/50 hover:bg-zinc-800/50 cursor-pointer transition-colors';
+        item.onclick = () => openEditModal(r.date);
+        
+        item.innerHTML = `
+          <div>
+            <div class="text-sm font-bold text-zinc-300 tabular-nums">${r.date}</div>
+            ${r.memo ? `<div class="text-[10px] text-zinc-500 mt-0.5 truncate w-40">${r.memo}</div>` : ''}
+          </div>
+          <div class="text-right flex items-center space-x-4">
+            <span class="text-xs font-medium tabular-nums ${diffColor}">${diffStr}</span>
+            <span class="text-lg font-bold tabular-nums">${r.weight.toFixed(1)} <span class="text-[10px] text-zinc-500 font-normal">kg</span></span>
+            <svg class="w-4 h-4 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          </div>
+        `;
+        list.appendChild(item);
+      }
+    }
+
+    // --- MODAL LOGIC (Edit Record) ---
+    function openEditModal(dateStr) {
+      editingDate = dateStr;
+      const rec = getRecord(dateStr);
+      document.getElementById('modal-edit-date').textContent = dateStr;
+      
+      if (rec) {
+        document.getElementById('modal-edit-weight').value = rec.weight;
+        document.getElementById('modal-edit-memo').value = rec.memo || '';
+      } else {
+        const latest = getLatestWeight();
+        document.getElementById('modal-edit-weight').value = latest ? latest : appData.profile.weight;
+        document.getElementById('modal-edit-memo').value = '';
+      }
+      
+      openModal('modal-edit');
+    }
+
+    function saveEditModal() {
+      const weight = parseFloat(document.getElementById('modal-edit-weight').value);
+      const memo = document.getElementById('modal-edit-memo').value;
+      
+      if (!weight) {
+        showToast("体重を入力してください"); return;
+      }
+      
+      saveRecord(editingDate, weight, memo);
+      closeModal('modal-edit');
+      
+      // Update underlying view
+      if (currentView === 'home') renderHome();
+      if (currentView === 'calendar') renderCalendar();
+      if (currentView === 'history') renderHistory();
+      if (currentView === 'graph') renderGraphView();
+      showToast("保存しました");
+    }
+
+    function deleteRecordModal() {
+      customConfirm("この記録を削除しますか？", () => {
+        appData.weightRecords = appData.weightRecords.filter(r => r.date !== editingDate);
+        saveData();
+        closeModal('modal-edit');
+        if (currentView === 'home') renderHome();
+        if (currentView === 'calendar') renderCalendar();
+        if (currentView === 'history') renderHistory();
+        if (currentView === 'graph') renderGraphView();
+        showToast("削除しました");
+      });
+    }
+
+    // --- STREAMING_CHUNK:Settings and Data Import/Export ---
+    // --- SETTINGS LOGIC ---
+    function renderSettings() {
+      if (!appData.profile) return;
+      document.getElementById('setting-height').value = appData.profile.height;
+      document.getElementById('setting-goal').value = appData.profile.goalWeight;
+      document.getElementById('setting-age').value = appData.profile.age;
+      document.getElementById('setting-sex').value = appData.profile.sex;
+      document.getElementById('setting-activity').value = appData.profile.activityLevel;
+      document.getElementById('setting-pace').value = appData.profile.weeklyGoal;
+    }
+
+    function saveSettings() {
+      const height = parseFloat(document.getElementById('setting-height').value);
+      const goal = parseFloat(document.getElementById('setting-goal').value);
+      const age = parseInt(document.getElementById('setting-age').value);
+      
+      if(!height || !goal || !age) {
+        showToast("数値を正しく入力してください"); return;
+      }
+
+      appData.profile.height = height;
+      appData.profile.goalWeight = goal;
+      appData.profile.age = age;
+      appData.profile.sex = document.getElementById('setting-sex').value;
+      appData.profile.activityLevel = parseFloat(document.getElementById('setting-activity').value);
+      appData.profile.weeklyGoal = parseFloat(document.getElementById('setting-pace').value);
+      
+      saveData();
+      showToast("プロフィールを更新しました");
+    }
+
+    // --- EXPORT / IMPORT ---
+    function exportData() {
+      const dataStr = JSON.stringify(appData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `weight-log-backup-${getTodayString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported && imported.profile && Array.isArray(imported.weightRecords)) {
+            customConfirm("現在のデータを上書きします。よろしいですか？", () => {
+              appData = imported;
+              if(!appData.version) appData.version = APP_VERSION;
+              saveData();
+              showToast("データを復元しました");
+              renderSettings();
+            });
+          } else {
+            showToast("ファイル形式が正しくありません");
+          }
+        } catch (err) {
+          showToast("ファイルの読み込みに失敗しました");
+        }
+        // reset input
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    // --- STREAMING_CHUNK:App Initialization ---
+    // --- INIT ---
+    function init() {
+      const hasData = loadData();
+      if (!hasData || !appData.profile) {
+        navigate('setup');
+      } else {
+        navigate('home');
+      }
+      
+      // Window resize handling for canvas
+      window.addEventListener('resize', () => {
+        if(currentView === 'home') drawGraph('home-mini-graph', 30, true);
+        if(currentView === 'graph') {
+           const range = currentGraphRange === 'all' ? 9999 : parseInt(currentGraphRange);
+           drawGraph('main-graph', range, false);
+        }
+      });
+    }
+
+    // Start App
+    window.onload = init;
+
+  </script>
+</body>
+</html>
