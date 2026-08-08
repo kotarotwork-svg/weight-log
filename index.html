@@ -83,8 +83,9 @@
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-zinc-400 mb-1">AGE</label>
-          <input type="number" id="setup-age" value="30" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">DATE OF BIRTH</label>
+          <input type="date" id="setup-birthdate" onchange="updateSetupAge()" class="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-white focus:outline-none focus:border-zinc-500">
+          <p class="text-[10px] text-zinc-500 mt-1">AGE: <span id="setup-age-display">--</span></p>
         </div>
       </div>
       
@@ -348,8 +349,9 @@
           <input type="number" id="setting-goal" step="0.1" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
         </div>
         <div>
-          <label class="block text-[10px] font-bold text-zinc-500 mb-1">AGE</label>
-          <input type="number" id="setting-age" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+          <label class="block text-[10px] font-bold text-zinc-500 mb-1">DATE OF BIRTH</label>
+          <input type="date" id="setting-birthdate" onchange="updateSettingAge()" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-zinc-500">
+          <p class="text-[10px] text-zinc-500 mt-1">AGE: <span id="setting-age-display">--</span></p>
         </div>
         <div>
           <label class="block text-[10px] font-bold text-zinc-500 mb-1">SEX</label>
@@ -499,6 +501,10 @@
           const parsed = JSON.parse(json);
           if (parsed && typeof parsed === 'object') {
             appData = { ...appData, ...parsed };
+            if (appData.profile && appData.profile.birthDate) {
+              const currentAge = calcAge(appData.profile.birthDate);
+              if (currentAge !== null) appData.profile.age = currentAge;
+            }
             sortRecords();
             return true;
           }
@@ -519,6 +525,43 @@
     }
 
     // --- CALCULATION ---
+
+    // 生年月日から現在の満年齢を計算
+    function calcAge(birthDateStr, referenceDate = new Date()) {
+      if (!birthDateStr) return null;
+      const parts = birthDateStr.split('-').map(Number);
+      if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+      const [birthYear, birthMonth, birthDay] = parts;
+      let age = referenceDate.getFullYear() - birthYear;
+      const currentMonth = referenceDate.getMonth() + 1;
+      const currentDay = referenceDate.getDate();
+
+      if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDay < birthDay)) {
+        age--;
+      }
+      return age >= 0 ? age : null;
+    }
+
+    // birthDateがある場合は常に自動計算。旧データは保存済みageをフォールバックとして使用
+    function getCurrentAge() {
+      if (!appData.profile) return null;
+      const calculatedAge = calcAge(appData.profile.birthDate);
+      return calculatedAge !== null ? calculatedAge : appData.profile.age;
+    }
+
+    function updateSetupAge() {
+      const birthDate = document.getElementById('setup-birthdate').value;
+      const age = calcAge(birthDate);
+      document.getElementById('setup-age-display').textContent = age !== null ? age : '--';
+    }
+
+    function updateSettingAge() {
+      const birthDate = document.getElementById('setting-birthdate').value;
+      const age = calcAge(birthDate);
+      document.getElementById('setting-age-display').textContent = age !== null ? age : '--';
+    }
+
     // BMI = kg / (m * m)
     function calcBMI(weight, heightCm) {
       if (!weight || !heightCm) return 0;
@@ -698,25 +741,37 @@
       const height = parseFloat(document.getElementById('setup-height').value);
       const weight = parseFloat(document.getElementById('setup-weight').value);
       const goal = parseFloat(document.getElementById('setup-goal').value);
-      const age = parseInt(document.getElementById('setup-age').value);
+      const birthDate = document.getElementById('setup-birthdate').value;
+      const age = calcAge(birthDate);
       const sex = document.getElementById('setup-sex').value;
       const activity = parseFloat(document.getElementById('setup-activity').value);
       const pace = parseFloat(document.getElementById('setup-pace').value);
-      
-      if (!height || !weight || !goal || !age) {
-        showToast("数値を正しく入力してください");
+
+      if (!height || !weight || !goal || !birthDate || age === null) {
+        showToast("生年月日と数値を正しく入力してください");
+        return;
+      }
+
+      if (age < 10 || age > 120) {
+        showToast("生年月日を確認してください");
         return;
       }
 
       appData.profile = {
         name: document.getElementById('setup-name').value || '',
-        sex, age, height, goalWeight: goal, activityLevel: activity, weeklyGoal: pace
+        sex,
+        birthDate,
+        age,
+        height,
+        goalWeight: goal,
+        activityLevel: activity,
+        weeklyGoal: pace
       };
 
       // 最初の体重を記録
       const today = getTodayString();
       appData.weightRecords = [{ date: today, weight, memo: 'START' }];
-      
+
       saveData();
       navigate('home');
     }
@@ -806,7 +861,9 @@
 
         // Calculate Metrics
         const bmi = calcBMI(latestW, appData.profile.height);
-        const bmr = calcBMR(latestW, appData.profile.height, appData.profile.age, appData.profile.sex);
+        const currentAge = getCurrentAge();
+        if (currentAge !== null) appData.profile.age = currentAge;
+        const bmr = calcBMR(latestW, appData.profile.height, currentAge, appData.profile.sex);
         const tdee = calcTDEE(bmr, appData.profile.activityLevel);
         const targetKcal = calcTargetKcal(tdee, appData.profile.weeklyGoal);
         
@@ -1292,29 +1349,46 @@
       if (!appData.profile) return;
       document.getElementById('setting-height').value = appData.profile.height;
       document.getElementById('setting-goal').value = appData.profile.goalWeight;
-      document.getElementById('setting-age').value = appData.profile.age;
+      document.getElementById('setting-birthdate').value = appData.profile.birthDate || '';
       document.getElementById('setting-sex').value = appData.profile.sex;
       document.getElementById('setting-activity').value = appData.profile.activityLevel;
       document.getElementById('setting-pace').value = appData.profile.weeklyGoal;
+
+      const currentAge = getCurrentAge();
+      document.getElementById('setting-age-display').textContent = currentAge !== null ? currentAge : '--';
     }
 
     function saveSettings() {
       const height = parseFloat(document.getElementById('setting-height').value);
       const goal = parseFloat(document.getElementById('setting-goal').value);
-      const age = parseInt(document.getElementById('setting-age').value);
-      
-      if(!height || !goal || !age) {
-        showToast("数値を正しく入力してください"); return;
+      const birthDate = document.getElementById('setting-birthdate').value;
+      const calculatedAge = calcAge(birthDate);
+
+      if(!height || !goal) {
+        showToast("数値を正しく入力してください");
+        return;
+      }
+
+      // 既存ユーザーは生年月日未登録でも設定画面を使える。
+      // 生年月日を入力した場合のみ、自動年齢へ移行する。
+      if (birthDate && (calculatedAge === null || calculatedAge < 10 || calculatedAge > 120)) {
+        showToast("生年月日を確認してください");
+        return;
       }
 
       appData.profile.height = height;
       appData.profile.goalWeight = goal;
-      appData.profile.age = age;
       appData.profile.sex = document.getElementById('setting-sex').value;
       appData.profile.activityLevel = parseFloat(document.getElementById('setting-activity').value);
       appData.profile.weeklyGoal = parseFloat(document.getElementById('setting-pace').value);
-      
+
+      if (birthDate) {
+        appData.profile.birthDate = birthDate;
+        appData.profile.age = calculatedAge;
+      }
+
       saveData();
+      renderSettings();
       showToast("プロフィールを更新しました");
     }
 
